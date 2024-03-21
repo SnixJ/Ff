@@ -1,0 +1,51 @@
+import os
+import cv2
+import numpy as np
+import tensorflow as tf
+
+
+# Функция для загрузки и предобработки изображений
+def load_images_from_folder(folder):
+    images = []
+    labels = []
+    for subfolder in os.listdir(folder):
+        subfolder_path = os.path.join(folder, subfolder)
+        if os.path.isdir(subfolder_path):
+            for filename in os.listdir(subfolder_path):
+                if filename.endswith(".jpg"):
+                    img_path = os.path.join(subfolder_path, filename)
+                    img = cv2.imread(img_path)
+                    if img is not None:
+                        img = cv2.resize(img, (64, 64))  # Изменяем размер изображения
+                        images.append(img)
+                        labels.append(subfolder)  # Метка - имя папки
+    return np.array(images), np.array(labels)
+
+# Загрузка данных
+data_folder = "/content/Datasets"
+X, y = load_images_from_folder(data_folder)
+
+
+# Преобразование меток в уникальные числовые идентификаторы
+label_to_id = {label: idx for idx, label in enumerate(np.unique(y))}
+y = np.array([label_to_id[label] for label in y])
+
+
+# Создание CNN модели
+model = tf.keras.Sequential([
+    tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(64, 64, 3)),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(len(label_to_id), activation='softmax')  # Используем softmax для многоклассовой классификации
+])
+
+# Компиляция модели
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+# Сохранение модели
+model.save("license_plate_classification_model.h5")
